@@ -1,3 +1,8 @@
+"""
+EGX Stock Scraper Module
+Uses Browserless or Selenium for scraping
+"""
+
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
@@ -5,6 +10,40 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException, NoSuchElementException
 import pandas as pd
 import time
+import os
+
+def get_chrome_driver():
+    """
+    Get Chrome driver configured for Railway/Browserless
+    Supports both local Selenium and Browserless
+    """
+    print("Initializing Chrome driver...")
+    
+    # Check if using Browserless
+    browserless_url = os.getenv('BROWSERLESS_URL')
+    
+    if browserless_url:
+        print(f"Using Browserless at {browserless_url}")
+        options = webdriver.ChromeOptions()
+        options.add_argument('--disable-blink-features=AutomationControlled')
+        
+        driver = webdriver.Remote(
+            command_executor=f'{browserless_url}',
+            options=options
+        )
+    else:
+        # Use local Chrome
+        print("Using local Chrome installation")
+        options = webdriver.ChromeOptions()
+        options.add_argument('--disable-blink-features=AutomationControlled')
+        options.add_argument('--no-sandbox')
+        options.add_argument('--disable-dev-shm-usage')
+        options.add_argument('--headless')  # Run in headless mode on servers
+        
+        driver = webdriver.Chrome(options=options)
+    
+    return driver
+
 
 def scrape_egx_stocks():
     """
@@ -30,14 +69,7 @@ def scrape_egx_stocks():
         'رأس المال السوقى (مليون جنيه)'
     ]
     
-    # Initialize Chrome driver
-    print("Initializing Chrome driver...")
-    options = webdriver.ChromeOptions()
-    options.add_argument('--disable-blink-features=AutomationControlled')
-    options.add_argument('--no-sandbox')
-    options.add_argument('--disable-dev-shm-usage')
-    
-    driver = webdriver.Chrome(options=options)
+    driver = get_chrome_driver()
     
     try:
         # Navigate to the URL
@@ -127,7 +159,7 @@ def scrape_egx_stocks():
                     company_name = driver.find_element(By.XPATH, company_xpath).text
                     row_data['اسم الشركة'] = company_name
                 except NoSuchElementException:
-                    # Try alternative xpath without div/div[2]
+                    # Try alternative xpath
                     try:
                         alt_company_xpath = f"/html/body/form/table/tbody/tr[2]/td/center/center/div/table/tbody/tr[4]/td/div/div/table/tbody/tr[{i}]/td[2]"
                         company_name = driver.find_element(By.XPATH, alt_company_xpath).text
@@ -141,7 +173,6 @@ def scrape_egx_stocks():
                     sector = driver.find_element(By.XPATH, sector_xpath).text
                     row_data['القطاع'] = sector
                 except NoSuchElementException:
-                    # Try without div
                     try:
                         alt_sector_xpath = f"/html/body/form/table/tbody/tr[2]/td/center/center/div/table/tbody/tr[4]/td/div/div/table/tbody/tr[{i}]/td[3]"
                         sector = driver.find_element(By.XPATH, alt_sector_xpath).text
@@ -149,11 +180,9 @@ def scrape_egx_stocks():
                     except:
                         row_data['القطاع'] = ""
                 
-                # Scrape remaining columns (4 to 14) - Total 11 columns
-                #Columns map: 4-الإقفال السابق, 5-سعر الفتح, 6-سعر الاغلاق, 7-نسبة التغير%
-                # 8-آخر سعر, 9-اعلى سعر, 10-اقل سعر, 11-القيمة, 12-الكمية, 13-عدد العمليات, 14-رأس المال
-                for col_num in range(4, 15):  # 4 to 14 inclusive
-                    col_index = col_num - 2  # Convert to column name index (4->2, 5->3, etc.)
+                # Scrape remaining columns (4 to 14)
+                for col_num in range(4, 15):
+                    col_index = col_num - 2
                     col_name = columns[col_index]
                     
                     cell_xpath = f"/html/body/form/table/tbody/tr[2]/td/center/center/div/table/tbody/tr[4]/td/div/div/table/tbody/tr[{i}]/td[{col_num}]"
@@ -172,7 +201,7 @@ def scrape_egx_stocks():
                 else:
                     consecutive_empty += 1
                     if consecutive_empty > 5:
-                        print(f"Reached end of table at row {i} (5 consecutive empty rows)")
+                        print(f"Reached end of table at row {i}")
                         break
                 
             except Exception as e:
@@ -186,16 +215,6 @@ def scrape_egx_stocks():
         # Create DataFrame
         df = pd.DataFrame(stock_data, columns=columns)
         
-        # Save to Excel
-        filename = f"egx_stocks_{time.strftime('%Y%m%d_%H%M%S')}.xlsx"
-        df.to_excel(filename, index=False, engine='openpyxl')
-        print(f"\nData saved to {filename}")
-        print(f"Total rows: {len(df)}")
-        
-        # Display first few rows
-        print("\nFirst 5 rows:")
-        print(df.head())
-        
         return df, header_text
         
     except Exception as e:
@@ -204,19 +223,8 @@ def scrape_egx_stocks():
         
     finally:
         # Close the browser
-        print("\nClosing browser...")
-        driver.quit()
-
-if __name__ == "__main__":
-    print("=" * 60)
-    print("EGX Stock Data Scraper")
-    print("=" * 60)
-    
-    try:
-        df, header = scrape_egx_stocks()
-        print("\n" + "=" * 60)
-        print("Scraping completed successfully!")
-        print("=" * 60)
-    except Exception as e:
-        print(f"\nScraping failed: {str(e)}")
-        print("Please check your internet connection and try again.")
+        print("Closing browser...")
+        try:
+            driver.quit()
+        except:
+            pass

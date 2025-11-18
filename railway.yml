@@ -1,60 +1,41 @@
-# Railway Configuration for Selenium Grid + Web Scraper
+# Railway configuration with Browserless
+# Browserless handles Chrome installation automatically
+# https://railway.app/template/browserless
 
-# Service: Selenium Grid Hub
 services:
-  selenium-hub:
-    image: selenium/hub:latest
+  # Browserless service (handles Chrome automatically)
+  browserless:
+    image: browserless/chrome:latest
     ports:
-      - 4444:4444
-      - 4442:4442
-      - 4443:4443
+      - "3000:3000"
     environment:
-      - SE_SESSION_REQUEST_TIMEOUT=300
-      - SE_SESSION_RETRY_INTERVAL=5
-      - SE_NODE_MAX_SESSIONS=5
+      - CHROME_HEADLESS=true
+      - CONNECTION_TIMEOUT=30000
+      - ENABLE_DEBUGGER=false
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
-  # Service: Chrome Node
-  chrome-node:
-    image: selenium/node-chrome:latest
-    environment:
-      - SE_EVENT_BUS_HOST=selenium-hub
-      - SE_EVENT_BUS_PUBLISH_PORT=4442
-      - SE_EVENT_BUS_SUBSCRIBE_PORT=4443
-      - SE_NODE_MAX_SESSIONS=3
-    shm_size: 2gb
-
-  # Service: Firefox Node
-  firefox-node:
-    image: selenium/node-firefox:latest
-    environment:
-      - SE_EVENT_BUS_HOST=selenium-hub
-      - SE_EVENT_BUS_PUBLISH_PORT=4442
-      - SE_EVENT_BUS_SUBSCRIBE_PORT=4443
-      - SE_NODE_MAX_SESSIONS=3
-    shm_size: 2gb
-
-  # Service: Edge Node
-  edge-node:
-    image: selenium/node-edge:latest
-    environment:
-      - SE_EVENT_BUS_HOST=selenium-hub
-      - SE_EVENT_BUS_PUBLISH_PORT=4442
-      - SE_EVENT_BUS_SUBSCRIBE_PORT=4443
-      - SE_NODE_MAX_SESSIONS=3
-    shm_size: 2gb
-
-  # Service: Python Web Scraper
+  # Python FastAPI scraper app
   web-scraper:
     build:
       context: .
       dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
     environment:
-      - SELENIUM_GRID_URL=http://selenium-hub:4444
+      - BROWSERLESS_URL=http://browserless:3000/webdriver
       - PYTHONUNBUFFERED=1
+      - PORT=8000
     depends_on:
-      - selenium-hub
-      - chrome-node
-      - firefox-node
-      - edge-node
+      browserless:
+        condition: service_healthy
     volumes:
       - ./excel_files:/app/excel_files
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
