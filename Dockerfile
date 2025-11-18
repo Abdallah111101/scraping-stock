@@ -11,13 +11,12 @@ RUN apt-get update && apt-get install -y \
     curl \
     gnupg \
     unzip \
-    libopenpyxl-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements
 COPY requirements.txt .
 
-# Install Python dependencies
+# Install Python dependencies (includes openpyxl)
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy application files
