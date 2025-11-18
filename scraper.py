@@ -1,53 +1,61 @@
-"""
-EGX Stock Scraper Module
-Uses Browserless or Selenium for scraping
-"""
-
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException, NoSuchElementException
+from selenium.webdriver.remote.webdriver import WebDriver as RemoteWebDriver
 import pandas as pd
 import time
 import os
+import logging
 
-def get_chrome_driver():
+logger = logging.getLogger(__name__)
+
+def get_selenium_grid_driver():
     """
-    Get Chrome driver configured for Railway/Browserless
-    Supports both local Selenium and Browserless
+    Connect to Selenium Grid hub
+    When running locally: selenium-hub:4444
+    When running on Railway: use Railway-provided endpoint
     """
-    print("Initializing Chrome driver...")
+    grid_url = os.getenv("SELENIUM_GRID_URL", "http://selenium-hub:4444")
     
-    # Check if using Browserless
-    browserless_url = os.getenv('BROWSERLESS_URL')
+    logger.info(f"Connecting to Selenium Grid at {grid_url}")
     
-    if browserless_url:
-        print(f"Using Browserless at {browserless_url}")
-        options = webdriver.ChromeOptions()
-        options.add_argument('--disable-blink-features=AutomationControlled')
+    # Try Chrome first (best compatibility)
+    try:
+        chrome_options = webdriver.ChromeOptions()
+        chrome_options.add_argument('--disable-blink-features=AutomationControlled')
+        chrome_options.add_argument('--no-sandbox')
+        chrome_options.add_argument('--disable-dev-shm-usage')
+        chrome_options.add_argument('--disable-gpu')
+        chrome_options.add_argument('--start-maximized')
         
         driver = webdriver.Remote(
-            command_executor=f'{browserless_url}',
-            options=options
+            command_executor=f"{grid_url}/wd/hub",
+            options=chrome_options
         )
-    else:
-        # Use local Chrome
-        print("Using local Chrome installation")
-        options = webdriver.ChromeOptions()
-        options.add_argument('--disable-blink-features=AutomationControlled')
-        options.add_argument('--no-sandbox')
-        options.add_argument('--disable-dev-shm-usage')
-        options.add_argument('--headless')  # Run in headless mode on servers
-        
-        driver = webdriver.Chrome(options=options)
-    
-    return driver
-
+        logger.info("Connected to Selenium Grid with Chrome")
+        return driver
+    except Exception as e:
+        logger.warning(f"Chrome connection failed: {str(e)}, trying Firefox...")
+        try:
+            firefox_options = webdriver.FirefoxOptions()
+            firefox_options.add_argument('--disable-blink-features=AutomationControlled')
+            
+            driver = webdriver.Remote(
+                command_executor=f"{grid_url}/wd/hub",
+                options=firefox_options
+            )
+            logger.info("Connected to Selenium Grid with Firefox")
+            return driver
+        except Exception as e:
+            logger.error(f"Failed to connect to Selenium Grid: {str(e)}")
+            raise
 
 def scrape_egx_stocks():
     """
-    Scrapes stock data from Egyptian Exchange website
+    Scrapes stock data from Egyptian Exchange website using Selenium Grid
+    Returns: (DataFrame, header_text)
     """
     # URL to scrape
     url = "https://www.egx.com.eg/ar/prices.aspx"
@@ -69,20 +77,22 @@ def scrape_egx_stocks():
         'رأس المال السوقى (مليون جنيه)'
     ]
     
-    driver = get_chrome_driver()
+    # Initialize driver from Selenium Grid
+    logger.info("Initializing Selenium Grid driver...")
+    driver = get_selenium_grid_driver()
     
     try:
         # Navigate to the URL
-        print(f"Navigating to {url}...")
+        logger.info(f"Navigating to {url}...")
         driver.get(url)
         
         # Wait for page to load
-        print("Waiting for page to load (10 seconds)...")
+        logger.info("Waiting for page to load (10 seconds)...")
         time.sleep(10)
         
         # Click the button using XPath
         button_xpath = "/html/body/form/table/tbody/tr[2]/td/center/center/div/table/tbody/tr[4]/td/table[1]/tbody/tr[2]/td/div/div/ul/li[1]/a"
-        print("Clicking the button...")
+        logger.info("Clicking the button...")
         
         # Try multiple times in case of alert errors
         max_attempts = 3
@@ -94,7 +104,7 @@ def scrape_egx_stocks():
                 
                 # Use JavaScript click as alternative
                 driver.execute_script("arguments[0].click();", button)
-                print(f"Button clicked (attempt {attempt + 1})")
+                logger.info(f"Button clicked (attempt {attempt + 1})")
                 
                 # Wait a moment for any alerts
                 time.sleep(2)
@@ -103,9 +113,9 @@ def scrape_egx_stocks():
                 try:
                     alert = driver.switch_to.alert
                     alert_text = alert.text
-                    print(f"Alert detected: {alert_text}")
+                    logger.info(f"Alert detected: {alert_text}")
                     alert.accept()
-                    print("Alert dismissed, retrying...")
+                    logger.info("Alert dismissed, retrying...")
                     time.sleep(2)
                     continue
                 except:
@@ -113,21 +123,21 @@ def scrape_egx_stocks():
                     break
                     
             except Exception as e:
-                print(f"Attempt {attempt + 1} failed: {str(e)}")
+                logger.warning(f"Attempt {attempt + 1} failed: {str(e)}")
                 if attempt < max_attempts - 1:
-                    print("Retrying...")
+                    logger.info("Retrying...")
                     time.sleep(3)
                 else:
                     raise
         
         # Wait for table to appear
-        print("Waiting for table to load (20 seconds)...")
+        logger.info("Waiting for table to load (20 seconds)...")
         time.sleep(20)
         
         # Check for any remaining alerts
         try:
             alert = driver.switch_to.alert
-            print(f"Alert found: {alert.text}")
+            logger.info(f"Alert found: {alert.text}")
             alert.accept()
             time.sleep(2)
         except:
@@ -137,16 +147,16 @@ def scrape_egx_stocks():
         header_xpath = "/html/body/form/table/tbody/tr[2]/td/center/center/div/table/tbody/tr[4]/td/div/div/table/tbody/tr[1]/td[2]/p"
         try:
             header_text = driver.find_element(By.XPATH, header_xpath).text
-            print(f"Header text: {header_text}")
+            logger.info(f"Header text: {header_text}")
         except NoSuchElementException:
             header_text = "Not found"
-            print("Header text not found")
+            logger.warning("Header text not found")
         
         # Initialize data storage
         stock_data = []
         
         # Scrape rows from 2 to 220
-        print("Scraping stock data...")
+        logger.info("Scraping stock data...")
         consecutive_empty = 0
         
         for i in range(2, 221):
@@ -159,7 +169,6 @@ def scrape_egx_stocks():
                     company_name = driver.find_element(By.XPATH, company_xpath).text
                     row_data['اسم الشركة'] = company_name
                 except NoSuchElementException:
-                    # Try alternative xpath
                     try:
                         alt_company_xpath = f"/html/body/form/table/tbody/tr[2]/td/center/center/div/table/tbody/tr[4]/td/div/div/table/tbody/tr[{i}]/td[2]"
                         company_name = driver.find_element(By.XPATH, alt_company_xpath).text
@@ -197,34 +206,49 @@ def scrape_egx_stocks():
                     stock_data.append(row_data)
                     consecutive_empty = 0
                     if len(stock_data) % 20 == 0:
-                        print(f"Scraped {len(stock_data)} stocks... (current row: {i})")
+                        logger.info(f"Scraped {len(stock_data)} stocks... (current row: {i})")
                 else:
                     consecutive_empty += 1
                     if consecutive_empty > 5:
-                        print(f"Reached end of table at row {i}")
+                        logger.info(f"Reached end of table at row {i} (5 consecutive empty rows)")
                         break
                 
             except Exception as e:
                 consecutive_empty += 1
                 if consecutive_empty > 5:
-                    print(f"Reached end of table at row {i}")
+                    logger.info(f"Reached end of table at row {i}")
                     break
         
-        print(f"Total stocks scraped: {len(stock_data)}")
+        logger.info(f"Total stocks scraped: {len(stock_data)}")
         
         # Create DataFrame
         df = pd.DataFrame(stock_data, columns=columns)
         
+        logger.info(f"Data prepared. Total rows: {len(df)}")
+        logger.info(f"First 5 rows:\n{df.head()}")
+        
         return df, header_text
         
     except Exception as e:
-        print(f"An error occurred: {str(e)}")
+        logger.error(f"An error occurred during scraping: {str(e)}")
         raise
         
     finally:
         # Close the browser
-        print("Closing browser...")
-        try:
-            driver.quit()
-        except:
-            pass
+        logger.info("Closing Selenium Grid connection...")
+        driver.quit()
+
+if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO)
+    
+    logger.info("=" * 60)
+    logger.info("EGX Stock Data Scraper (Selenium Grid)")
+    logger.info("=" * 60)
+    
+    try:
+        df, header = scrape_egx_stocks()
+        logger.info("\n" + "=" * 60)
+        logger.info("Scraping completed successfully!")
+        logger.info("=" * 60)
+    except Exception as e:
+        logger.error(f"\nScraping failed: {str(e)}")

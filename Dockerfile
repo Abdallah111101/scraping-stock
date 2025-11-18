@@ -1,71 +1,36 @@
-# Multi-stage build for EGX Stock Scraper with Browserless support on Railway
-
-# Stage 1: Build stage
-FROM python:3.11-slim as builder
+# Production Dockerfile for FastAPI + Selenium Grid Client
+FROM python:3.11-slim
 
 WORKDIR /app
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
-    build-essential \
-    wget \
-    curl \
-    gnupg \
-    unzip \
+    gcc \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements
 COPY requirements.txt .
 
 # Install Python dependencies
-RUN pip install --no-cache-dir --user -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
 
-# Stage 2: Runtime stage
-FROM python:3.11-slim
-
-WORKDIR /app
-
-# Install Chrome for Selenium (Browserless alternative for local dev)
-RUN apt-get update && apt-get install -y \
-    chromium \
-    chromium-driver \
-    fonts-liberation \
-    libappindicator3-1 \
-    libatk-bridge2.0-0 \
-    libatk1.0-0 \
-    libcups2 \
-    libdbus-1-3 \
-    libgdk-pixbuf2.0-0 \
-    libglib2.0-0 \
-    libgtk-3-0 \
-    libx11-xcb1 \
-    libxss1 \
-    xdg-utils \
-    && rm -rf /var/lib/apt/lists/*
-
-# Copy Python dependencies from builder
-COPY --from=builder /root/.local /root/.local
-
-# Set environment variables
-ENV PATH=/root/.local/bin:$PATH
-ENV PYTHONUNBUFFERED=1
-ENV CHROME_BIN=/usr/bin/chromium
-ENV CHROMEDRIVER=/usr/bin/chromedriver
-
-# Copy application
-COPY scraper.py .
+# Copy application code
 COPY main.py .
-COPY config.ini .
+COPY scraper.py .
 
-# Create directories
-RUN mkdir -p /app/excel_files
-
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:8000/health || exit 1
+# Create data directory
+RUN mkdir -p data
 
 # Expose port
 EXPOSE 8000
 
-# Run FastAPI app
-CMD ["python", "-m", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Environment variables
+ENV SELENIUM_GRID_URL="http://selenium-hub:4444"
+ENV PYTHONUNBUFFERED=1
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD python -c "import requests; requests.get('http://localhost:8000/status')" || exit 1
+
+# Run the application
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
