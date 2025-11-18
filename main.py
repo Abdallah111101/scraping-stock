@@ -25,6 +25,12 @@ try:
 except ImportError:
     HTTP_SCRAPER_AVAILABLE = False
 
+try:
+    from real_egx_scraper import RealEGXScraper
+    REAL_SCRAPER_AVAILABLE = True
+except ImportError:
+    REAL_SCRAPER_AVAILABLE = False
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Lifespan context manager for startup and shutdown events"""
@@ -289,7 +295,7 @@ def scrape_with_http_requests():
         raise
 
 def perform_scrape():
-    """Perform the scraping task with Selenium first, HTTP fallback"""
+    """Perform the scraping task with multiple fallbacks"""
     with state.lock:
         if state.is_scraping:
             print("Scrape already in progress, skipping...")
@@ -305,19 +311,39 @@ def perform_scrape():
             print(f"Starting scrape at {datetime.now()} (Attempt {retry_count + 1}/{max_retries})")
             print("="*60)
             
-            # Try Selenium first
-            print("Method: Selenium/Chrome")
-            try:
-                filepath, filename = scrape_egx_stocks()
-            except Exception as selenium_error:
-                print(f"\n⚠ Selenium method failed: {str(selenium_error)[:100]}...")
-                
-                # Fallback to HTTP requests
-                if HTTP_SCRAPER_AVAILABLE:
-                    print("Falling back to HTTP requests method...")
-                    filepath, filename = scrape_with_http_requests()
-                else:
+            # Try Real EGX Scraper first (best for Railway)
+            if REAL_SCRAPER_AVAILABLE:
+                print("Method: Real EGX Scraper (No Selenium needed)")
+                try:
+                    scraper = RealEGXScraper()
+                    stocks = scraper.get_stock_data()
+                    
+                    if stocks and len(stocks) > 0:
+                        # Save to Excel
+                        filepath = scraper.save_to_excel(stocks, f"{EXCEL_DIR}/egx_stocks_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx")
+                        filename = os.path.basename(filepath) if filepath else "egx_stocks.xlsx"
+                        print(f"✓ Scraped {len(stocks)} stocks")
+                    else:
+                        raise Exception("No stocks retrieved")
+                        
+                except Exception as real_scraper_error:
+                    print(f"⚠ Real scraper failed: {str(real_scraper_error)[:100]}...")
                     raise
+            
+            # Fallback 1: Try Selenium
+            else:
+                print("Method: Selenium/Chrome")
+                try:
+                    filepath, filename = scrape_egx_stocks()
+                except Exception as selenium_error:
+                    print(f"⚠ Selenium method failed: {str(selenium_error)[:100]}...")
+                    
+                    # Fallback 2: HTTP requests
+                    if HTTP_SCRAPER_AVAILABLE:
+                        print("Falling back to HTTP requests method...")
+                        filepath, filename = scrape_with_http_requests()
+                    else:
+                        raise
             
             with state.lock:
                 state.last_update = datetime.now()
