@@ -13,14 +13,17 @@ services:
       - GRID_MAX_SESSION=10
       - GRID_BROWSER_TIMEOUT=300
       - GRID_TIMEOUT=300
+      - SE_SESSION_REQUEST_TIMEOUT=300
+      - SE_NODE_MAX_INSTANCES=5
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:4444/wd/hub/status"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 5s
+      start_period: 10s
     networks:
       - selenium-network
+    restart: unless-stopped
 
   # Chrome browser node
   chrome:

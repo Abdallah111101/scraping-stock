@@ -78,6 +78,25 @@ async def startup_event():
     """Initialize scheduler on startup"""
     global state
     
+    # Wait for Selenium Hub to be ready
+    import time
+    logger.info("Waiting for Selenium Grid Hub to be ready...")
+    grid_url = os.getenv("SELENIUM_GRID_URL", "http://selenium-hub:4444")
+    
+    for attempt in range(30):  # Try for up to 30 seconds
+        try:
+            import requests
+            response = requests.get(f"{grid_url}/wd/hub/status", timeout=5)
+            if response.status_code == 200:
+                logger.info("Selenium Grid Hub is ready!")
+                break
+        except Exception as e:
+            if attempt < 29:
+                logger.info(f"Waiting for Hub... (attempt {attempt + 1}/30)")
+                await asyncio.sleep(1)
+            else:
+                logger.warning("Selenium Grid Hub not ready, continuing anyway...")
+    
     # Check if file exists from previous run
     if EXCEL_PATH.exists():
         state.current_file = EXCEL_FILENAME
