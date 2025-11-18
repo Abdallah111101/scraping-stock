@@ -21,6 +21,8 @@ def get_selenium_grid_driver():
     
     logger.info(f"Connecting to Selenium Grid at {grid_url}")
     
+    last_error = None
+    
     # Try Chrome first (best compatibility)
     for attempt in range(5):  # Retry up to 5 times
         try:
@@ -39,6 +41,7 @@ def get_selenium_grid_driver():
             logger.info("Connected to Selenium Grid with Chrome")
             return driver
         except Exception as e:
+            last_error = e
             logger.warning(f"Chrome attempt {attempt + 1} failed: {str(e)}")
             if attempt < 4:
                 import time
@@ -58,13 +61,15 @@ def get_selenium_grid_driver():
             logger.info("Connected to Selenium Grid with Firefox")
             return driver
         except Exception as e:
+            last_error = e
             logger.warning(f"Firefox attempt {attempt + 1} failed: {str(e)}")
             if attempt < 2:
                 import time
                 time.sleep(2)
     
-    logger.error(f"Failed to connect to Selenium Grid after all attempts: {str(e)}")
-    raise
+    error_msg = str(last_error) if last_error else "Unknown error"
+    logger.error(f"Failed to connect to Selenium Grid after all attempts: {error_msg}")
+    raise Exception(f"Could not connect to Selenium Grid at {grid_url}: {error_msg}")
 
 def scrape_egx_stocks():
     """
