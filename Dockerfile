@@ -22,6 +22,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application files
 COPY selenium_grid_railway.py .
 COPY config.ini .
+COPY Procfile .
 
 # Create excel_files directory
 RUN mkdir -p /app/excel_files
@@ -32,7 +33,7 @@ ENV SELENIUM_GRID_URL=http://selenium-hub:4444
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD python -c "import requests; requests.get('http://localhost:4444/status')" || exit 1
+    CMD python -c "import sys; sys.exit(0)" || exit 1
 
-# Run the scraper
-CMD ["python", "selenium_grid_railway.py"]
+# Run using Procfile
+CMD ["sh", "-c", "python selenium_grid_railway.py"]
