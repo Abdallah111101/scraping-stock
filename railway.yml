@@ -1,0 +1,60 @@
+# Railway Configuration for Selenium Grid + Web Scraper
+
+# Service: Selenium Grid Hub
+services:
+  selenium-hub:
+    image: selenium/hub:latest
+    ports:
+      - 4444:4444
+      - 4442:4442
+      - 4443:4443
+    environment:
+      - SE_SESSION_REQUEST_TIMEOUT=300
+      - SE_SESSION_RETRY_INTERVAL=5
+      - SE_NODE_MAX_SESSIONS=5
+
+  # Service: Chrome Node
+  chrome-node:
+    image: selenium/node-chrome:latest
+    environment:
+      - SE_EVENT_BUS_HOST=selenium-hub
+      - SE_EVENT_BUS_PUBLISH_PORT=4442
+      - SE_EVENT_BUS_SUBSCRIBE_PORT=4443
+      - SE_NODE_MAX_SESSIONS=3
+    shm_size: 2gb
+
+  # Service: Firefox Node
+  firefox-node:
+    image: selenium/node-firefox:latest
+    environment:
+      - SE_EVENT_BUS_HOST=selenium-hub
+      - SE_EVENT_BUS_PUBLISH_PORT=4442
+      - SE_EVENT_BUS_SUBSCRIBE_PORT=4443
+      - SE_NODE_MAX_SESSIONS=3
+    shm_size: 2gb
+
+  # Service: Edge Node
+  edge-node:
+    image: selenium/node-edge:latest
+    environment:
+      - SE_EVENT_BUS_HOST=selenium-hub
+      - SE_EVENT_BUS_PUBLISH_PORT=4442
+      - SE_EVENT_BUS_SUBSCRIBE_PORT=4443
+      - SE_NODE_MAX_SESSIONS=3
+    shm_size: 2gb
+
+  # Service: Python Web Scraper
+  web-scraper:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      - SELENIUM_GRID_URL=http://selenium-hub:4444
+      - PYTHONUNBUFFERED=1
+    depends_on:
+      - selenium-hub
+      - chrome-node
+      - firefox-node
+      - edge-node
+    volumes:
+      - ./excel_files:/app/excel_files
