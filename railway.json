@@ -1,107 +1,6 @@
 {
   "services": [
     {
-      "name": "selenium-hub",
-      "image": "selenium/hub:4.15.0",
-      "ports": [
-        {
-          "port": 4444,
-          "expose": false
-        },
-        {
-          "port": 4442,
-          "expose": false
-        },
-        {
-          "port": 4443,
-          "expose": false
-        }
-      ],
-      "environment": {
-        "GRID_MAX_SESSION": "10",
-        "GRID_BROWSER_TIMEOUT": "300",
-        "GRID_TIMEOUT": "300"
-      },
-      "healthCheck": {
-        "path": "/wd/hub/status",
-        "interval": 30,
-        "timeout": 10,
-        "retries": 3
-      }
-    },
-    {
-      "name": "chrome-node",
-      "image": "selenium/node-chrome:4.15.0",
-      "ports": [
-        {
-          "port": 5555,
-          "expose": false
-        }
-      ],
-      "environment": {
-        "SE_EVENT_BUS_HOST": "selenium-hub",
-        "SE_EVENT_BUS_PUBLISH_PORT": "4442",
-        "SE_EVENT_BUS_SUBSCRIBE_PORT": "4443",
-        "SE_NODE_MAX_SESSIONS": "3",
-        "SE_NODE_SESSION_TIMEOUT": "300",
-        "SE_START_VNC": "false",
-        "SHM_SIZE": "2gb"
-      },
-      "dependsOn": ["selenium-hub"],
-      "replicas": 1,
-      "resources": {
-        "memory": "2Gi"
-      }
-    },
-    {
-      "name": "firefox-node",
-      "image": "selenium/node-firefox:4.15.0",
-      "ports": [
-        {
-          "port": 5555,
-          "expose": false
-        }
-      ],
-      "environment": {
-        "SE_EVENT_BUS_HOST": "selenium-hub",
-        "SE_EVENT_BUS_PUBLISH_PORT": "4442",
-        "SE_EVENT_BUS_SUBSCRIBE_PORT": "4443",
-        "SE_NODE_MAX_SESSIONS": "3",
-        "SE_NODE_SESSION_TIMEOUT": "300",
-        "SE_START_VNC": "false",
-        "SHM_SIZE": "2gb"
-      },
-      "dependsOn": ["selenium-hub"],
-      "replicas": 1,
-      "resources": {
-        "memory": "2Gi"
-      }
-    },
-    {
-      "name": "edge-node",
-      "image": "selenium/node-edge:4.15.0",
-      "ports": [
-        {
-          "port": 5555,
-          "expose": false
-        }
-      ],
-      "environment": {
-        "SE_EVENT_BUS_HOST": "selenium-hub",
-        "SE_EVENT_BUS_PUBLISH_PORT": "4442",
-        "SE_EVENT_BUS_SUBSCRIBE_PORT": "4443",
-        "SE_NODE_MAX_SESSIONS": "3",
-        "SE_NODE_SESSION_TIMEOUT": "300",
-        "SE_START_VNC": "false",
-        "SHM_SIZE": "2gb"
-      },
-      "dependsOn": ["selenium-hub"],
-      "replicas": 1,
-      "resources": {
-        "memory": "2Gi"
-      }
-    },
-    {
       "name": "egx-scraper-app",
       "build": {
         "context": ".",
@@ -114,16 +13,9 @@
         }
       ],
       "environment": {
-        "SELENIUM_GRID_URL": "http://selenium-hub:4444",
         "PYTHONUNBUFFERED": "1",
         "PORT": "8000"
       },
-      "dependsOn": [
-        "selenium-hub",
-        "chrome-node",
-        "firefox-node",
-        "edge-node"
-      ],
       "healthCheck": {
         "path": "/status",
         "interval": 30,
@@ -139,13 +31,13 @@
       ],
       "restartPolicy": "unless-stopped",
       "resources": {
-        "memory": "1Gi",
-        "cpu": "0.5"
+        "memory": "2Gi",
+        "cpu": "1"
       }
     }
   ],
   "project": {
     "name": "egx-stock-scraper",
-    "description": "Egyptian Exchange Stock Data Scraper with FastAPI and Selenium Grid"
+    "description": "Egyptian Exchange Stock Data Scraper with FastAPI"
   }
 }

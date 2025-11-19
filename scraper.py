@@ -13,59 +13,41 @@ logger = logging.getLogger(__name__)
 
 def get_selenium_grid_driver():
     """
-    Connect to Selenium Grid hub
-    When running locally: selenium-hub:4444
-    When running on Railway: use Railway-provided endpoint
+    Connect to local Chrome browser using Selenium
     """
-    grid_url = os.getenv("SELENIUM_GRID_URL", "http://selenium-hub:4444")
-    
-    logger.info(f"Connecting to Selenium Grid at {grid_url}")
+    logger.info("Initializing local Chrome driver")
     
     last_error = None
     
-    # Try Chrome first (best compatibility)
-    for attempt in range(5):  # Retry up to 5 times
+    # Try Chrome with local binary
+    for attempt in range(3):  # Retry up to 3 times
         try:
             chrome_options = webdriver.ChromeOptions()
             chrome_options.add_argument('--disable-blink-features=AutomationControlled')
             chrome_options.add_argument('--no-sandbox')
             chrome_options.add_argument('--disable-dev-shm-usage')
             chrome_options.add_argument('--disable-gpu')
+            chrome_options.add_argument('--headless')
             chrome_options.add_argument('--start-maximized')
+            chrome_options.add_argument('--disable-web-resources')
+            chrome_options.add_argument('--disable-extensions')
+            chrome_options.add_argument('--disable-default-apps')
             
-            driver = webdriver.Remote(
-                command_executor=f"{grid_url}/wd/hub",
-                options=chrome_options
-            )
-            logger.info("Connected to Selenium Grid with Chrome")
+            # Use chromium binary
+            chrome_options.binary_location = '/usr/bin/chromium-browser'
+            
+            driver = webdriver.Chrome(options=chrome_options)
+            logger.info("Connected with local Chrome")
             return driver
         except Exception as e:
             last_error = e
             logger.warning(f"Chrome attempt {attempt + 1} failed: {str(e)}")
-            if attempt < 4:
+            if attempt < 2:
                 time.sleep(2)  # Wait before retrying
     
-    # Try Firefox
-    for attempt in range(3):
-        try:
-            firefox_options = webdriver.FirefoxOptions()
-            firefox_options.add_argument('--disable-blink-features=AutomationControlled')
-            
-            driver = webdriver.Remote(
-                command_executor=f"{grid_url}/wd/hub",
-                options=firefox_options
-            )
-            logger.info("Connected to Selenium Grid with Firefox")
-            return driver
-        except Exception as e:
-            last_error = e
-            logger.warning(f"Firefox attempt {attempt + 1} failed: {str(e)}")
-            if attempt < 2:
-                time.sleep(2)
-    
     error_msg = str(last_error) if last_error else "Unknown error"
-    logger.error(f"Failed to connect to Selenium Grid after all attempts: {error_msg}")
-    raise Exception(f"Could not connect to Selenium Grid at {grid_url}: {error_msg}")
+    logger.error(f"Failed to initialize Chrome after all attempts: {error_msg}")
+    raise Exception(f"Could not initialize Chrome: {error_msg}")
 
 def scrape_egx_stocks():
     """
