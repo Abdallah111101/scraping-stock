@@ -201,6 +201,7 @@ def scrape_egx_stocks():
         # Scrape rows from 2 to 220
         logger.info("Scraping stock data...")
         consecutive_empty = 0
+        rows_found = 0
         
         for i in range(2, 221):
             try:
@@ -211,11 +212,13 @@ def scrape_egx_stocks():
                 try:
                     company_name = driver.find_element(By.XPATH, company_xpath).text
                     row_data['اسم الشركة'] = company_name
+                    rows_found += 1
                 except NoSuchElementException:
                     try:
                         alt_company_xpath = f"/html/body/form/table/tbody/tr[2]/td/center/center/div/table/tbody/tr[4]/td/div/div/table/tbody/tr[{i}]/td[2]"
                         company_name = driver.find_element(By.XPATH, alt_company_xpath).text
                         row_data['اسم الشركة'] = company_name
+                        rows_found += 1
                     except:
                         row_data['اسم الشركة'] = ""
                 
@@ -267,13 +270,22 @@ def scrape_egx_stocks():
                     logger.info(f"Reached end of table at row {i}")
                     break
         
-        logger.info(f"Total stocks scraped: {len(stock_data)}")
+        logger.info(f"Total stocks scraped: {len(stock_data)} (rows with company names found: {rows_found})")
+        
+        # Check if we got any data
+        if len(stock_data) == 0:
+            logger.error("No data was scraped! The table might not have loaded properly.")
+            logger.error("This could be due to:")
+            logger.error("- XPath selectors not matching the current page structure")
+            logger.error("- JavaScript not rendering the table")
+            logger.error("- Network issues loading the page")
         
         # Create DataFrame
         df = pd.DataFrame(stock_data, columns=columns)
         
         logger.info(f"Data prepared. Total rows: {len(df)}")
-        logger.info(f"First 5 rows:\n{df.head()}")
+        if len(df) > 0:
+            logger.info(f"First 5 rows:\n{df.head()}")
         
         return df, header_text
         
