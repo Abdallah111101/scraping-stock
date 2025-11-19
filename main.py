@@ -61,7 +61,7 @@ async def scheduled_scraping():
         # Update state
         state.current_file = EXCEL_FILENAME
         state.last_update = datetime.now()
-        state.next_update = datetime.now() + timedelta(hours=8)
+        state.next_update = datetime.now() + timedelta(hours=1)
         
         logger.info(f"Scraping completed successfully. File saved: {EXCEL_PATH}")
         logger.info(f"Next update scheduled for: {state.next_update}")
