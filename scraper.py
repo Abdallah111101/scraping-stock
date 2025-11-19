@@ -240,6 +240,11 @@ def scrape_egx_stocks():
                     cell_xpath = f"/html/body/form/table/tbody/tr[2]/td/center/center/div/table/tbody/tr[4]/td/div/div/table/tbody/tr[{i}]/td[{col_num}]"
                     try:
                         cell_value = driver.find_element(By.XPATH, cell_xpath).text
+                        
+                        # Add % symbol to percentage change column (نسبة التغير%)
+                        if col_name == 'نسبة التغير%' and cell_value and not cell_value.endswith('%'):
+                            cell_value = cell_value + '%'
+                        
                         row_data[col_name] = cell_value
                     except NoSuchElementException:
                         row_data[col_name] = ""
