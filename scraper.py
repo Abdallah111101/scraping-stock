@@ -35,8 +35,7 @@ def get_selenium_grid_driver():
             
             driver = webdriver.Remote(
                 command_executor=f"{grid_url}/wd/hub",
-                options=chrome_options,
-                command_timeout=30
+                options=chrome_options
             )
             logger.info("Connected to Selenium Grid with Chrome")
             return driver
@@ -44,7 +43,6 @@ def get_selenium_grid_driver():
             last_error = e
             logger.warning(f"Chrome attempt {attempt + 1} failed: {str(e)}")
             if attempt < 4:
-                import time
                 time.sleep(2)  # Wait before retrying
     
     # Try Firefox
@@ -55,8 +53,7 @@ def get_selenium_grid_driver():
             
             driver = webdriver.Remote(
                 command_executor=f"{grid_url}/wd/hub",
-                options=firefox_options,
-                command_timeout=30
+                options=firefox_options
             )
             logger.info("Connected to Selenium Grid with Firefox")
             return driver
@@ -64,7 +61,6 @@ def get_selenium_grid_driver():
             last_error = e
             logger.warning(f"Firefox attempt {attempt + 1} failed: {str(e)}")
             if attempt < 2:
-                import time
                 time.sleep(2)
     
     error_msg = str(last_error) if last_error else "Unknown error"
