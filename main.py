@@ -40,7 +40,7 @@ EXCEL_FILENAME = "egx_stocks_latest.xlsx"
 EXCEL_PATH = DATA_DIR / EXCEL_FILENAME
 
 async def scheduled_scraping():
-    """Execute scraping every 8 hours"""
+    """Execute scraping every 1 hours"""
     global state
     
     if state.is_scraping:
@@ -84,16 +84,16 @@ async def startup_event():
     if EXCEL_PATH.exists():
         state.current_file = EXCEL_FILENAME
         state.last_update = datetime.fromtimestamp(EXCEL_PATH.stat().st_mtime)
-        state.next_update = state.last_update + timedelta(hours=8)
+        state.next_update = state.last_update + timedelta(hours=1)
     else:
         # First run immediately
         await scheduled_scraping()
-        state.next_update = datetime.now() + timedelta(hours=8)
+        state.next_update = datetime.now() + timedelta(hours=1)
     
     # Start scheduler
     scheduler.add_job(
         scheduled_scraping,
-        IntervalTrigger(hours=8),
+        IntervalTrigger(hours=1),
         id='scraping_job',
         name='EGX Stock Scraping',
         replace_existing=True
@@ -101,7 +101,7 @@ async def startup_event():
     
     if not scheduler.running:
         scheduler.start()
-        logger.info("Scheduler started - Next update in 8 hours")
+        logger.info("Scheduler started - Next update in 1 hours")
 
 @app.on_event("shutdown")
 async def shutdown_event():
@@ -372,7 +372,7 @@ async def get_dashboard():
             </div>
             
             <div class="info-text">
-                <strong>ℹ️ How it works:</strong> The system automatically scrapes EGX stock data every 8 hours and saves it to an Excel file. You can download the latest data using the button above. The countdown shows when the next update will occur.
+                <strong>ℹ️ How it works:</strong> The system automatically scrapes EGX stock data every 1 hours and saves it to an Excel file. You can download the latest data using the button above. The countdown shows when the next update will occur.
             </div>
         </div>
         
