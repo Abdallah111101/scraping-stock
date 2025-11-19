@@ -25,9 +25,9 @@ except Exception as e:
 
 def get_selenium_grid_driver():
     """
-    Connect to local Chrome browser using Selenium in headless mode
+    Connect to local Chrome browser using Selenium in background mode
     """
-    logger.info("Initializing local Chrome driver in headless mode")
+    logger.info("Initializing local Chrome driver")
     
     last_error = None
     
@@ -36,8 +36,7 @@ def get_selenium_grid_driver():
         try:
             chrome_options = webdriver.ChromeOptions()
             
-            # Headless options for background operation
-            chrome_options.add_argument('--headless=new')
+            # Background options (use virtual display instead of headless for better JS support)
             chrome_options.add_argument('--no-sandbox')
             chrome_options.add_argument('--disable-dev-shm-usage')
             chrome_options.add_argument('--disable-gpu')
@@ -48,17 +47,16 @@ def get_selenium_grid_driver():
             chrome_options.add_argument('--disable-sync')
             chrome_options.add_argument('--disable-translate')
             chrome_options.add_argument('--disable-background-networking')
-            chrome_options.add_argument('--disable-default-apps')
-            chrome_options.add_argument('--disable-sync')
             chrome_options.add_argument('--metrics-recording-only')
             chrome_options.add_argument('--mute-audio')
             chrome_options.add_argument('--no-first-run')
+            chrome_options.add_argument('--start-maximized')
             
             # Use chromium binary (Debian package name)
             chrome_options.binary_location = '/usr/bin/chromium'
             
             driver = webdriver.Chrome(options=chrome_options)
-            logger.info("Connected with local Chrome in headless mode")
+            logger.info("Connected with local Chrome")
             return driver
         except Exception as e:
             last_error = e
@@ -104,9 +102,23 @@ def scrape_egx_stocks():
         logger.info(f"Navigating to {url}...")
         driver.get(url)
         
-        # Wait for page to load
-        logger.info("Waiting for page to load (10 seconds)...")
-        time.sleep(10)
+        # Wait for page to fully load with JavaScript
+        logger.info("Waiting for page to load (15 seconds)...")
+        time.sleep(5)
+        
+        # Execute JavaScript to wait for jQuery if available
+        try:
+            driver.execute_script("""
+                if (typeof jQuery !== 'undefined') {
+                    jQuery(document).ready(function() {});
+                }
+            """)
+            time.sleep(3)
+        except:
+            pass
+        
+        logger.info("Waiting for button element...")
+        time.sleep(5)
         
         # Click the button using XPath
         button_xpath = "/html/body/form/table/tbody/tr[2]/td/center/center/div/table/tbody/tr[4]/td/table[1]/tbody/tr[2]/td/div/div/ul/li[1]/a"
@@ -114,18 +126,22 @@ def scrape_egx_stocks():
         
         # Try multiple times in case of alert errors
         max_attempts = 3
+        button_found = False
+        
         for attempt in range(max_attempts):
             try:
-                button = WebDriverWait(driver, 15).until(
+                logger.info(f"Button click attempt {attempt + 1}...")
+                button = WebDriverWait(driver, 20).until(
                     EC.element_to_be_clickable((By.XPATH, button_xpath))
                 )
+                button_found = True
                 
                 # Use JavaScript click as alternative
                 driver.execute_script("arguments[0].click();", button)
-                logger.info(f"Button clicked (attempt {attempt + 1})")
+                logger.info(f"Button clicked successfully")
                 
-                # Wait a moment for any alerts
-                time.sleep(2)
+                # Wait a moment for any alerts or page updates
+                time.sleep(3)
                 
                 # Check for and dismiss any alerts
                 try:
@@ -133,24 +149,33 @@ def scrape_egx_stocks():
                     alert_text = alert.text
                     logger.info(f"Alert detected: {alert_text}")
                     alert.accept()
-                    logger.info("Alert dismissed, retrying...")
+                    logger.info("Alert dismissed")
                     time.sleep(2)
-                    continue
                 except:
                     # No alert, success
+                    logger.info("No alert detected, proceeding...")
                     break
                     
-            except Exception as e:
-                logger.warning(f"Attempt {attempt + 1} failed: {str(e)}")
+            except TimeoutException:
+                logger.warning(f"Timeout waiting for button (attempt {attempt + 1}/{max_attempts})")
                 if attempt < max_attempts - 1:
-                    logger.info("Retrying...")
+                    logger.info("Retrying after delay...")
+                    time.sleep(3)
+            except Exception as e:
+                logger.warning(f"Button click failed (attempt {attempt + 1}): {str(e)}")
+                if attempt < max_attempts - 1:
+                    logger.info("Retrying after delay...")
                     time.sleep(3)
                 else:
                     raise
         
-        # Wait for table to appear
-        logger.info("Waiting for table to load (20 seconds)...")
-        time.sleep(20)
+        if not button_found:
+            logger.error("Could not find button element after all attempts")
+            raise Exception("Button element not found")
+        
+        # Wait for table to appear with longer timeout
+        logger.info("Waiting for table to load (30 seconds)...")
+        time.sleep(30)
         
         # Check for any remaining alerts
         try:
