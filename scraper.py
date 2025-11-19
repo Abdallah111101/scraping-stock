@@ -36,7 +36,7 @@ def get_selenium_grid_driver():
             driver = webdriver.Remote(
                 command_executor=f"{grid_url}/wd/hub",
                 options=chrome_options,
-                timeout=30
+                command_timeout=30
             )
             logger.info("Connected to Selenium Grid with Chrome")
             return driver
@@ -56,7 +56,7 @@ def get_selenium_grid_driver():
             driver = webdriver.Remote(
                 command_executor=f"{grid_url}/wd/hub",
                 options=firefox_options,
-                timeout=30
+                command_timeout=30
             )
             logger.info("Connected to Selenium Grid with Firefox")
             return driver
