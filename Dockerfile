@@ -6,21 +6,19 @@ WORKDIR /app
 # Install system dependencies including Chrome and dependencies
 RUN apt-get update && apt-get install -y \
     gcc \
-    chromium-browser \
+    chromium \
     chromium-driver \
     xvfb \
     libxss1 \
-    libappindicator1 \
-    libindicator7 \
     fonts-liberation \
     libappindicator3-1 \
     libatk-bridge2.0-0 \
     libatspi2.0-0 \
     libgtk-3-0 \
-    libxss1 \
     lsb-release \
     xdg-utils \
     wget \
+    ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements

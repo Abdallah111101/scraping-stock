@@ -33,8 +33,8 @@ def get_selenium_grid_driver():
             chrome_options.add_argument('--disable-extensions')
             chrome_options.add_argument('--disable-default-apps')
             
-            # Use chromium binary
-            chrome_options.binary_location = '/usr/bin/chromium-browser'
+            # Use chromium binary (Debian package name)
+            chrome_options.binary_location = '/usr/bin/chromium'
             
             driver = webdriver.Chrome(options=chrome_options)
             logger.info("Connected with local Chrome")
