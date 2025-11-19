@@ -3,12 +3,13 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# Install system dependencies including Chrome and dependencies
+# Install system dependencies including Chrome, virtual display and dependencies
 RUN apt-get update && apt-get install -y \
     gcc \
     chromium \
     chromium-driver \
     xvfb \
+    x11-utils \
     libxss1 \
     fonts-liberation \
     libappindicator3-1 \

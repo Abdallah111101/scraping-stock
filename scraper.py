@@ -8,14 +8,26 @@ import pandas as pd
 import time
 import os
 import logging
+import subprocess
 
 logger = logging.getLogger(__name__)
 
+# Start virtual display for headless mode
+try:
+    from pyvirtualdisplay import Display
+    display = Display(visible=0, size=(1920, 1080))
+    display.start()
+    logger.info("Virtual display started")
+except ImportError:
+    logger.warning("pyvirtualdisplay not available, running without virtual display")
+except Exception as e:
+    logger.warning(f"Could not start virtual display: {e}")
+
 def get_selenium_grid_driver():
     """
-    Connect to local Chrome browser using Selenium
+    Connect to local Chrome browser using Selenium in headless mode
     """
-    logger.info("Initializing local Chrome driver")
+    logger.info("Initializing local Chrome driver in headless mode")
     
     last_error = None
     
@@ -23,21 +35,30 @@ def get_selenium_grid_driver():
     for attempt in range(3):  # Retry up to 3 times
         try:
             chrome_options = webdriver.ChromeOptions()
-            chrome_options.add_argument('--disable-blink-features=AutomationControlled')
+            
+            # Headless options for background operation
+            chrome_options.add_argument('--headless=new')
             chrome_options.add_argument('--no-sandbox')
             chrome_options.add_argument('--disable-dev-shm-usage')
             chrome_options.add_argument('--disable-gpu')
-            chrome_options.add_argument('--headless')
-            chrome_options.add_argument('--start-maximized')
+            chrome_options.add_argument('--window-size=1920,1080')
+            chrome_options.add_argument('--disable-blink-features=AutomationControlled')
             chrome_options.add_argument('--disable-web-resources')
-            chrome_options.add_argument('--disable-extensions')
             chrome_options.add_argument('--disable-default-apps')
+            chrome_options.add_argument('--disable-sync')
+            chrome_options.add_argument('--disable-translate')
+            chrome_options.add_argument('--disable-background-networking')
+            chrome_options.add_argument('--disable-default-apps')
+            chrome_options.add_argument('--disable-sync')
+            chrome_options.add_argument('--metrics-recording-only')
+            chrome_options.add_argument('--mute-audio')
+            chrome_options.add_argument('--no-first-run')
             
             # Use chromium binary (Debian package name)
             chrome_options.binary_location = '/usr/bin/chromium'
             
             driver = webdriver.Chrome(options=chrome_options)
-            logger.info("Connected with local Chrome")
+            logger.info("Connected with local Chrome in headless mode")
             return driver
         except Exception as e:
             last_error = e
