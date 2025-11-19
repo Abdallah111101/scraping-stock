@@ -39,6 +39,16 @@ scheduler = AsyncIOScheduler()
 EXCEL_FILENAME = "egx_stocks_latest.xlsx"
 EXCEL_PATH = DATA_DIR / EXCEL_FILENAME
 
+async def background_scraping():
+    """Background scraping job - runs 2 minutes before the update completes"""
+    logger.info("Background scraping started (2 minutes before update deadline)")
+    try:
+        # Run scraper silently in background
+        df, header_text = await asyncio.to_thread(scrape_egx_stocks)
+        logger.info("Background scraping completed successfully")
+    except Exception as e:
+        logger.warning(f"Background scraping failed (non-critical): {str(e)}")
+
 async def scheduled_scraping():
     """Execute scraping every 1 hours"""
     global state
@@ -90,7 +100,7 @@ async def startup_event():
         await scheduled_scraping()
         state.next_update = datetime.now() + timedelta(hours=1)
     
-    # Start scheduler
+    # Start main scheduler (runs every 1 hour)
     scheduler.add_job(
         scheduled_scraping,
         IntervalTrigger(hours=1),
@@ -99,9 +109,20 @@ async def startup_event():
         replace_existing=True
     )
     
+    # Add background pre-scraping job (starts 2 minutes before the update)
+    # This job runs 58 minutes after the main job (1 hour - 2 minutes)
+    scheduler.add_job(
+        background_scraping,
+        IntervalTrigger(minutes=58),
+        id='background_scraping_job',
+        name='Background Scraping (Pre-update)',
+        replace_existing=True,
+        max_instances=1
+    )
+    
     if not scheduler.running:
         scheduler.start()
-        logger.info("Scheduler started - Next update in 1 hours")
+        logger.info("Scheduler started - Updates every 1 hour with 2-minute pre-scraping")
 
 @app.on_event("shutdown")
 async def shutdown_event():
