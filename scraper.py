@@ -36,25 +36,36 @@ def get_selenium_grid_driver():
         try:
             chrome_options = webdriver.ChromeOptions()
             
-            # Background options (use virtual display instead of headless for better JS support)
+            # Critical options for container stability
             chrome_options.add_argument('--no-sandbox')
-            chrome_options.add_argument('--disable-dev-shm-usage')
+            chrome_options.add_argument('--disable-dev-shm-usage')  # Critical for memory constraints
             chrome_options.add_argument('--disable-gpu')
-            chrome_options.add_argument('--window-size=1920,1080')
-            chrome_options.add_argument('--disable-blink-features=AutomationControlled')
-            chrome_options.add_argument('--disable-web-resources')
+            chrome_options.add_argument('--disable-software-rasterizer')
+            chrome_options.add_argument('--disable-extensions')
+            chrome_options.add_argument('--disable-plugins')
             chrome_options.add_argument('--disable-default-apps')
             chrome_options.add_argument('--disable-sync')
             chrome_options.add_argument('--disable-translate')
             chrome_options.add_argument('--disable-background-networking')
+            chrome_options.add_argument('--disable-breakpad')
+            chrome_options.add_argument('--disable-component-extensions-with-background-pages')
+            chrome_options.add_argument('--disable-default-apps')
+            chrome_options.add_argument('--disable-preconnect')
+            
+            # Memory and performance optimizations
+            chrome_options.add_argument('--memory-pressure-off')
             chrome_options.add_argument('--metrics-recording-only')
             chrome_options.add_argument('--mute-audio')
             chrome_options.add_argument('--no-first-run')
-            chrome_options.add_argument('--start-maximized')
+            chrome_options.add_argument('--disable-blink-features=AutomationControlled')
+            
+            # Window size
+            chrome_options.add_argument('--window-size=1280,720')
             
             # Use chromium binary (Debian package name)
             chrome_options.binary_location = '/usr/bin/chromium'
             
+            logger.info(f"Chrome attempt {attempt + 1}: Creating webdriver...")
             driver = webdriver.Chrome(options=chrome_options)
             logger.info("Connected with local Chrome")
             return driver
@@ -62,7 +73,8 @@ def get_selenium_grid_driver():
             last_error = e
             logger.warning(f"Chrome attempt {attempt + 1} failed: {str(e)}")
             if attempt < 2:
-                time.sleep(2)  # Wait before retrying
+                logger.info(f"Waiting 3 seconds before retry...")
+                time.sleep(3)  # Longer wait between retries
     
     error_msg = str(last_error) if last_error else "Unknown error"
     logger.error(f"Failed to initialize Chrome after all attempts: {error_msg}")

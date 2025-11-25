@@ -4,7 +4,7 @@ FROM python:3.11-slim
 WORKDIR /app
 
 # Install system dependencies including Chrome, virtual display and dependencies
-RUN apt-get update && apt-get install -y \
+RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
     chromium \
     chromium-driver \
@@ -16,10 +16,23 @@ RUN apt-get update && apt-get install -y \
     libatk-bridge2.0-0 \
     libatspi2.0-0 \
     libgtk-3-0 \
+    libpango-1.0-0 \
+    libpangocairo-1.0-0 \
+    libgdk-pixbuf2.0-0 \
+    libdbus-1-3 \
+    libcups2 \
+    libpulse0 \
     lsb-release \
     xdg-utils \
     wget \
     ca-certificates \
+    libnss3 \
+    libxrandr2 \
+    libxcomposite1 \
+    libxdamage1 \
+    libxext6 \
+    libx11-6 \
+    libxcb1 \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements
